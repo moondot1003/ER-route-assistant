@@ -37,7 +37,7 @@ export type CraftingIngredient = { itemId: string; quantity: number };
 
 export interface CraftingRecipe {
   resultItemId: string;
-  resultQuantity: number;
+  outputQuantity: number;
   ingredients: CraftingIngredient[];
 }
 
