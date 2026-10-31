@@ -28,7 +28,7 @@ describe('equipment selection panel', () => {
       onChange: () => {},
     }));
     expect(html.match(/<select\b/g)).toHaveLength(5);
-    expect(html).toContain('02 / EQUIPMENT');
+    expect(html).toContain('02 / EQUIPMENTS');
     expect(html).toContain('최종 목표 장비');
     expect(html).toContain('0/5 선택');
     expect(html).not.toContain('장비 이름 검색');

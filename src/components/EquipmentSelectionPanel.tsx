@@ -16,7 +16,7 @@ export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, on
     <section className="panel equipment-selection" aria-labelledby="equipment-selection-title">
       <div className="section-heading equipment-selection-heading">
         <div>
-          <span className="eyebrow">02 / EQUIPMENT</span>
+          <span className="eyebrow">02 / EQUIPMENTS</span>
           <h2 id="equipment-selection-title">최종 목표 장비</h2>
         </div>
         <span className="selection-count">{selectedCount}/5 선택</span>
