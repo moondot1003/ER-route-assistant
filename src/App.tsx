@@ -12,6 +12,9 @@ import { LumiaMapPanel } from './components/LumiaMapPanel';
 import { WeaponTypeSelector } from './components/WeaponTypeSelector';
 import { emptyMaterialPlan, deriveMaterialTables } from './domain/materialPlan';
 import { materialAvailabilityByRegion } from './data/materialAvailability';
+import { regionLootSample } from './data/regionLootSample';
+import { recommendRoutes } from './domain/routeRecommendations';
+import { RouteRecommendationsPanel } from './components/RouteRecommendationsPanel';
 
 const initialMaterialPlan = emptyMaterialPlan();
 
@@ -54,6 +57,16 @@ export default function App() {
     materialError = cause instanceof Error ? cause.message : '알 수 없는 계산 오류';
   }
   const materialTables = deriveMaterialTables(materials, initialMaterialPlan, materialAvailabilityByRegion);
+  const hasSelection = Object.values(selectedEpicEquipment).some(Boolean);
+  let routeError = materialError;
+  let recommendations: ReturnType<typeof recommendRoutes> = [];
+  if (hasSelection && !routeError) {
+    try {
+      recommendations = recommendRoutes(materials, regionLootSample, materialAvailabilityByRegion);
+    } catch (cause) {
+      routeError = cause instanceof Error ? cause.message : '알 수 없는 추천 오류';
+    }
+  }
 
   function selectCharacter(characterId: string) {
     const nextCharacter = catalog?.characters.find((entry) => entry.id === characterId);
@@ -115,17 +128,16 @@ export default function App() {
 
           <RequiredMaterialsPanel
             tables={materialTables}
-            hasSelection={Object.values(selectedEpicEquipment).some(Boolean)}
+            hasSelection={hasSelection}
             error={materialError}
           />
 
-          <section className="panel placeholder-panel" aria-labelledby="route-title">
-            <div className="section-heading"><span className="eyebrow">04 / ROUTE</span><h2 id="route-title">루트 분석</h2></div>
-          </section>
+          <RouteRecommendationsPanel recommendations={recommendations} regions={regionLootSample}
+            hasSelection={hasSelection} error={routeError} />
         </div>
       </div>
 
-      <footer>지역 선택과 루트 분석은 준비 중입니다.</footer>
+      <footer>지도에서 루트를 선택하는 기능은 준비 중입니다.</footer>
     </main>
   );
 }

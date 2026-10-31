@@ -90,6 +90,12 @@ button, select { font: inherit; }
 .material-notation { margin: 11px 0 0; color: #94a5b5; font-size: 11px; line-height: 1.5; }
 .materials-empty { margin: 18px 0 0; color: #8696a8; font-size: 13px; }
 .materials-error { margin: 20px 0 0; color: #ffb8a9; font-size: 13px; }
+.route-list { display: grid; gap: 7px; list-style: none; margin: 16px 0 0; padding: 0; }
+.route-row { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 9px 10px; border: 1px solid #394b5a; border-radius: 7px; background: #192633; font-size: 12px; }
+.route-rank { color: #a6ddd3; font-weight: 800; }
+.route-areas { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-meta { color: #c5d2dd; white-space: nowrap; }
+.route-note { margin: 12px 0 0; color: #94a5b5; font-size: 11px; }
 
 footer { margin-top: 25px; color: #8696a8; font-size: 12px; text-align: center; }
 .error { padding: 20px; color: #ffb8a9; border: 1px solid #a45549; border-radius: 8px; }
@@ -103,4 +109,6 @@ footer { margin-top: 25px; color: #8696a8; font-size: 12px; text-align: center; 
 
 @media (max-width: 500px) {
   .equipment-selection-card { grid-template-columns: minmax(0, 1fr) minmax(85px, .45fr); }
+  .route-row { grid-template-columns: 20px minmax(0, 1fr); }
+  .route-meta { grid-column: 2; }
 }
