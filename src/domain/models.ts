@@ -3,6 +3,7 @@ import type { WeaponTypeId } from './weaponTypes';
 export type DataSource = 'mock' | 'official-api';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic';
 export type EquipmentSlot = 'weapon' | 'chest' | 'head' | 'arm' | 'leg';
+export type EpicEquipmentSelection = Record<EquipmentSlot, string | null>;
 
 export interface Character {
   id: string;

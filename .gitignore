@@ -6,3 +6,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# Local map preview asset; redistribution permission has not been confirmed.
+/public/maps/lumia-island.png

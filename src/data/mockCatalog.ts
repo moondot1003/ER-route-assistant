@@ -14,8 +14,8 @@ const groups = (area: string, quantities: Array<[number, number]>): ContainerGro
 export const mockCatalog: Catalog = {
   source: 'mock',
   characters: [
-    { id: 'mock-character-a', name: '시연 캐릭터 A', supportedWeaponTypes: ['glove', 'bow'] },
-    { id: 'mock-character-b', name: '시연 캐릭터 B', supportedWeaponTypes: ['bat'] },
+    { id: 'mock-character-a', name: '시연 실험체 A', supportedWeaponTypes: ['glove', 'bow'] },
+    { id: 'mock-character-b', name: '시연 실험체 B', supportedWeaponTypes: ['bat'] },
   ],
   equipment: [
     { id: 'mock-common-glove', name: '시연용 글러브', rarity: 'common', slot: 'weapon', weaponTypeId: 'glove' },

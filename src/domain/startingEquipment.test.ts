@@ -9,7 +9,7 @@ describe('Phase 1 mock catalog', () => {
     expect(new Set(weaponTypes.map((type) => type.id)).size).toBe(23);
   });
 
-  it('shows the selected Common weapon, Shirt, and Sneakers exactly once', () => {
+  it('returns the selected Common weapon, Shirt, and Sneakers exactly once', () => {
     const gloveStart = getStartingEquipment(mockCatalog, 'glove');
     const bowStart = getStartingEquipment(mockCatalog, 'bow');
 
