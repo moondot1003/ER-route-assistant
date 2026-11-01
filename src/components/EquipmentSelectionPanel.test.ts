@@ -38,7 +38,7 @@ describe('equipment selection panel', () => {
       onChange: () => {},
       onReset: () => {},
     }));
-    expect(html.match(/<select\b/g)).toHaveLength(5);
+    expect(html.match(/class="equipment-dropdown"/g)).toHaveLength(5);
     expect(html).toContain('02 / EQUIPMENTS');
     expect(html).toContain('최종 목표 장비');
     expect(html).toContain('0/5 선택');
@@ -47,11 +47,11 @@ describe('equipment selection panel', () => {
     expect(html).not.toContain('type="search"');
     expect(html.match(/비어 있음/g)).toHaveLength(5);
     for (const label of ['무기', '옷', '머리', '팔/장식', '다리']) expect(html).toContain(label);
-    expect(html).toContain(`value="${epicEquipmentOptions(equipmentCatalog, 'weapon', 'glove')[0].id}"`);
-    expect(html).not.toContain(`value="${epicEquipmentOptions(equipmentCatalog, 'weapon', 'bow')[0].id}"`);
+    expect(html).toContain(epicEquipmentOptions(equipmentCatalog, 'weapon', 'glove')[0].name);
+    expect(html).not.toContain(epicEquipmentOptions(equipmentCatalog, 'weapon', 'bow')[0].name);
   });
 
-  it('shows the selected item name and Epic rarity', () => {
+  it('shows the selected item name with Epic color and no rarity prefix', () => {
     const chest = epicEquipmentOptions(equipmentCatalog, 'chest', 'glove')[0];
     const html = renderToStaticMarkup(createElement(EquipmentSelectionPanel, {
       equipment: equipmentCatalog,
@@ -62,7 +62,8 @@ describe('equipment selection panel', () => {
     }));
     expect(html).toContain('1/5 선택');
     expect(html).toContain(chest.name);
-    expect(html).toContain('영웅');
+    expect(html).toContain('rarity-epic');
+    expect(html).not.toContain('영웅');
     expect(html.match(/비어 있음/g)).toHaveLength(4);
   });
 
@@ -71,8 +72,8 @@ describe('equipment selection panel', () => {
       equipment: equipmentCatalog, weaponTypeId: null,
       selection: emptyEpicEquipmentSelection(), onChange: () => {}, onReset: () => {},
     }));
-    expect(html.match(/<select[^>]*disabled/g)).toHaveLength(1);
+    expect(html.match(/aria-disabled="true"/g)).toHaveLength(1);
     expect(html).toContain('무기 유형 선택 필요');
-    expect(html.match(/<select\b/g)).toHaveLength(5);
+    expect(html.match(/class="equipment-dropdown"/g)).toHaveLength(5);
   });
 });

@@ -1,14 +1,19 @@
 import { LUMIA_ISLAND_MAP_IMAGE_PATH } from '../config/mapAssets';
 import type { mapRegions } from '../data/regionMapPositions';
+import type { ReactNode } from 'react';
 
 interface Props {
   regions: typeof mapRegions;
   activeRoute: readonly string[];
   onToggleRegion: (regionId: string) => void;
+  onResetRoute?: () => void;
+  children?: ReactNode;
 }
 
-export function LumiaMapPanel({ regions, activeRoute, onToggleRegion }: Props) {
+export function LumiaMapPanel({ regions, activeRoute, onToggleRegion, onResetRoute, children }: Props) {
   return <section className="panel map-panel" aria-label="루미아 섬 지도">
+    <div className="map-heading"><span className="eyebrow">LUMIA ISLAND</span></div>
+    <div className="map-layout">
     <div className="map-canvas">
       <img src={LUMIA_ISLAND_MAP_IMAGE_PATH} alt="루미아 섬 지역 선택 지도" />
       {regions.map((region) => {
@@ -20,6 +25,9 @@ export function LumiaMapPanel({ regions, activeRoute, onToggleRegion }: Props) {
           {region.name} <span aria-hidden="true">{index >= 0 ? ['①', '②', '③'][index] ?? `${index + 1}` : '□'}</span>
         </button>;
       })}
+      <button type="button" className="reset-button map-reset-button" onClick={onResetRoute}>초기화</button>
+    </div>
+    {children}
     </div>
   </section>;
 }

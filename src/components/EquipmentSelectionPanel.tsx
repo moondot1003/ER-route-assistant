@@ -1,6 +1,7 @@
 import type { Equipment, EpicEquipmentSelection, EquipmentSlot } from '../domain/models';
 import type { WeaponTypeId } from '../domain/weaponTypes';
 import { equipmentSlotLabels, equipmentSlots, epicEquipmentOptions } from '../domain/equipmentSelection';
+import { EquipmentDropdown } from './EquipmentDropdown';
 
 interface Props {
   equipment: Equipment[];
@@ -29,16 +30,11 @@ export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, on
           const options = epicEquipmentOptions(equipment, slot, weaponTypeId);
           return (
             <div className="equipment-selection-card" key={slot}>
-              <label className="field">
-                <span className="field-label">{equipmentSlotLabels[slot]}</span>
-                <select value={selection[slot] ?? ''} disabled={slot === 'weapon' && weaponTypeId === null}
-                  onChange={(event) => onChange(slot, event.target.value || null)}>
-                  <option value="">{slot === 'weapon' && weaponTypeId === null ? '무기 유형 선택 필요' : '선택 안 함'}</option>
-                  {options.map((item) => <option key={item.id} value={item.id}>{item.name} · 영웅</option>)}
-                </select>
-              </label>
+              <EquipmentDropdown label={equipmentSlotLabels[slot]} value={selection[slot]} selectedItem={selected}
+                disabled={slot === 'weapon' && weaponTypeId === null}
+                direct={options.map((item) => ({ item }))} directLabel={null} onChange={(itemId) => onChange(slot, itemId)} />
               <div className="equipment-selection-value">
-                {selected ? <><span>{selected.name}</span><strong>영웅</strong></> : <span className="empty-value">비어 있음</span>}
+                {selected ? <span className={`rarity-${selected.rarity}`}>{selected.name}</span> : <span className="empty-value">비어 있음</span>}
               </div>
             </div>
           );

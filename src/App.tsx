@@ -7,10 +7,13 @@ import type { Catalog } from './domain/models';
 import { weaponTypes, type WeaponTypeId } from './domain/weaponTypes';
 import { CharacterSelector } from './components/CharacterSelector';
 import { EquipmentSelectionPanel } from './components/EquipmentSelectionPanel';
+import { CraftableEquipmentPanel } from './components/CraftableEquipmentPanel';
 import { RequiredMaterialsPanel } from './components/RequiredMaterialsPanel';
 import { LumiaMapPanel } from './components/LumiaMapPanel';
 import { WeaponTypeSelector } from './components/WeaponTypeSelector';
-import { deriveMaterialTables, reconcileMaterialPlan, setMaterialPlanRoute, toggleDroneInMaterialPlan } from './domain/materialPlan';
+import { adjustDroneQuantityInMaterialPlan, deriveMaterialTables, designateCandidateDroneMaterial, reconcileMaterialPlan, setMaterialPlanRoute } from './domain/materialPlan';
+import { findCraftableEquipment } from './domain/craftableEquipment';
+import type { EquipmentSlot } from './domain/models';
 import { materialAvailabilityByRegion } from './data/materialAvailability';
 import { regionLootSample } from './data/regionLootSample';
 import { recommendRoutes } from './domain/routeRecommendations';
@@ -26,7 +29,7 @@ export default function App() {
   const [selection, setSelection] = useState(emptySelectionState);
   const { characterId: selectedCharacterId, weaponTypeId: selectedWeaponTypeId, equipment: selectedEpicEquipment } = selection;
   const [activeRoute, setActiveRoute] = useState<string[]>([]);
-  const [droneMaterialIds, setDroneMaterialIds] = useState<string[]>([]);
+  const [droneQuantities, setDroneQuantities] = useState<Record<string, number>>({});
   const [includeDroneRoutes, setIncludeDroneRoutes] = useState(true);
   const [error, setError] = useState('');
 
@@ -52,14 +55,17 @@ export default function App() {
   }, [selectedEpicEquipment, selectedWeaponTypeId]);
   const routeRegionIds = activeRoute.length > 0 ? activeRoute : null;
   const materialPlan = useMemo(() => reconcileMaterialPlan(
-    { routeRegionIds, droneMaterialIds }, materials, materialAvailabilityByRegion,
-  ), [routeRegionIds, droneMaterialIds, materials]);
+    { routeRegionIds, droneQuantities }, materials, materialAvailabilityByRegion,
+  ), [routeRegionIds, droneQuantities, materials]);
   useEffect(() => {
-    if (droneMaterialIds.length !== materialPlan.droneMaterialIds.length ||
-      droneMaterialIds.some((id, index) => id !== materialPlan.droneMaterialIds[index])) {
-      setDroneMaterialIds(materialPlan.droneMaterialIds);
+    if (JSON.stringify(droneQuantities) !== JSON.stringify(materialPlan.droneQuantities)) {
+      setDroneQuantities(materialPlan.droneQuantities);
     }
-  }, [droneMaterialIds, materialPlan]);
+  }, [droneQuantities, materialPlan]);
+
+  const craftable = useMemo(() => findCraftableEquipment(
+    activeRoute, selectedWeaponTypeId, materialAvailabilityByRegion,
+  ), [activeRoute, selectedWeaponTypeId]);
 
   if (error) return <main className="app-shell"><p role="alert" className="error">{error}</p></main>;
   if (!catalog) return <main className="app-shell"><p>시연 데이터를 불러오는 중…</p></main>;
@@ -92,10 +98,24 @@ export default function App() {
 
   function updateRoute(nextRoute: string[]) {
     setActiveRoute(nextRoute);
-    setDroneMaterialIds((current) => setMaterialPlanRoute(
-      { routeRegionIds, droneMaterialIds: current }, nextRoute.length > 0 ? nextRoute : null,
+    setDroneQuantities((current) => setMaterialPlanRoute(
+      { routeRegionIds, droneQuantities: current }, nextRoute.length > 0 ? nextRoute : null,
       materials, materialAvailabilityByRegion,
-    ).droneMaterialIds);
+    ).droneQuantities);
+  }
+
+  function selectCraftable(slot: EquipmentSlot, itemId: string | null) {
+    const nextEquipment = selectEpicEquipment(selectedEpicEquipment, slot, itemId, selectedWeaponTypeId, equipmentCatalog);
+    setSelection((current) => ({ ...current, equipment: nextEquipment }));
+    if (!itemId) return;
+    const candidate = [...craftable[slot].oneDrone].find((entry) => entry.item.id === itemId);
+    if (!candidate?.droneMaterial) return;
+    const combined = calculateSelectedEquipmentMaterials(nextEquipment, selectedWeaponTypeId)
+      .basicMaterials.map(acquisitionForBasicMaterial);
+    setDroneQuantities((current) => designateCandidateDroneMaterial(
+      { routeRegionIds, droneQuantities: current }, candidate.droneMaterial!.itemId,
+      combined, materialAvailabilityByRegion,
+    ).droneQuantities);
   }
 
   return (
@@ -139,15 +159,20 @@ export default function App() {
         </div>
 
         <div className="workspace-column">
-          <LumiaMapPanel regions={mapRegions} activeRoute={activeRoute}
-            onToggleRegion={(regionId) => updateRoute(toggleRouteRegion(activeRoute, regionId, validRegionIds))} />
+          <LumiaMapPanel regions={mapRegions} activeRoute={activeRoute} onResetRoute={() => updateRoute([])}
+            onToggleRegion={(regionId) => updateRoute(toggleRouteRegion(activeRoute, regionId, validRegionIds))}>
+            <CraftableEquipmentPanel candidates={craftable} equipment={equipmentCatalog}
+              selection={selectedEpicEquipment} weaponTypeId={selectedWeaponTypeId} hasRoute={activeRoute.length > 0}
+              droneQuantities={materialPlan.droneQuantities}
+              onChange={selectCraftable} onReset={() => setSelection((current) => resetEquipmentSelection(current))} />
+          </LumiaMapPanel>
 
           <RequiredMaterialsPanel
             tables={materialTables}
             hasSelection={hasSelection}
-            onToggleDrone={(itemId) => setDroneMaterialIds((current) => toggleDroneInMaterialPlan(
-              { routeRegionIds, droneMaterialIds: current }, itemId, materials, materialAvailabilityByRegion,
-            ).droneMaterialIds)}
+            onAdjustDrone={(itemId, delta) => setDroneQuantities((current) => adjustDroneQuantityInMaterialPlan(
+              { routeRegionIds, droneQuantities: current }, itemId, delta, materials, materialAvailabilityByRegion,
+            ).droneQuantities)}
             error={materialError}
           />
 

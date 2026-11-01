@@ -11,7 +11,7 @@ export interface PlanMaterial {
 /** null means no route has been selected; [] means an explicitly empty route. */
 export interface MaterialPlanState {
   routeRegionIds: string[] | null;
-  droneMaterialIds: string[];
+  droneQuantities: Record<string, number>;
 }
 
 export interface DronePlannedMaterial extends PlanMaterial {
@@ -35,7 +35,7 @@ export interface MaterialTables {
 
 export type MaterialAvailability = ReadonlyMap<string, ReadonlySet<string>>;
 
-export const emptyMaterialPlan = (): MaterialPlanState => ({ routeRegionIds: null, droneMaterialIds: [] });
+export const emptyMaterialPlan = (): MaterialPlanState => ({ routeRegionIds: null, droneQuantities: {} });
 
 function validPositiveUnit(unit: number | null): unit is number {
   return unit !== null && Number.isSafeInteger(unit) && unit > 0;
@@ -54,7 +54,6 @@ export function deriveMaterialTables(
   availability: MaterialAvailability,
 ): MaterialTables {
   const tables: MaterialTables = { included: [], missing: [], drone: [], surplus: [], unassigned: [] };
-  const droneIds = new Set(plan.droneMaterialIds);
   if (plan.routeRegionIds !== null) {
     for (const regionId of plan.routeRegionIds) {
       if (!availability.has(regionId)) throw new Error(`존재하지 않는 지역 ID: ${regionId}`);
@@ -74,16 +73,19 @@ export function deriveMaterialTables(
         const acquired = Math.ceil(material.quantity / material.unitsPerAcquisition) * material.unitsPerAcquisition;
         if (acquired > material.quantity) tables.surplus.push({ itemId: material.itemId, quantity: acquired - material.quantity });
       }
-    } else if (droneIds.has(material.itemId) && droneDesignationBlockReason(material) === null &&
-      validPositiveUnit(material.droneUnitsPerCall)) {
-      const requiredCalls = Math.ceil(material.quantity / material.droneUnitsPerCall);
-      const plannedUnits = requiredCalls * material.droneUnitsPerCall;
-      tables.drone.push({ ...material, droneUnitsPerCall: material.droneUnitsPerCall, requiredCalls, plannedUnits });
-      if (plannedUnits > material.quantity) tables.surplus.push({ itemId: material.itemId, quantity: plannedUnits - material.quantity });
-    } else if (plan.routeRegionIds === null) {
-      tables.unassigned.push(material);
     } else {
-      tables.missing.push(material);
+      const requested = plan.droneQuantities[material.itemId] ?? 0;
+      const droneQuantity = droneDesignationBlockReason(material) === null && Number.isSafeInteger(requested)
+        ? Math.max(0, Math.min(material.quantity, requested)) : 0;
+      const remaining = material.quantity - droneQuantity;
+      if (remaining > 0) {
+        (plan.routeRegionIds === null ? tables.unassigned : tables.missing).push({ ...material, quantity: remaining });
+      }
+      if (droneQuantity === 0 || !validPositiveUnit(material.droneUnitsPerCall)) continue;
+      const requiredCalls = Math.ceil(droneQuantity / material.droneUnitsPerCall);
+      const plannedUnits = requiredCalls * material.droneUnitsPerCall;
+      tables.drone.push({ ...material, quantity: droneQuantity, droneUnitsPerCall: material.droneUnitsPerCall, requiredCalls, plannedUnits });
+      if (plannedUnits > droneQuantity) tables.surplus.push({ itemId: material.itemId, quantity: plannedUnits - droneQuantity });
     }
   }
   return tables;
@@ -96,7 +98,7 @@ export function reconcileMaterialPlan(
   availability: MaterialAvailability,
 ): MaterialPlanState {
   const tables = deriveMaterialTables(materials, plan, availability);
-  return { ...plan, droneMaterialIds: tables.drone.map((material) => material.itemId) };
+  return { ...plan, droneQuantities: Object.fromEntries(tables.drone.map((material) => [material.itemId, material.quantity])) };
 }
 
 export function setMaterialPlanRoute(
@@ -109,18 +111,37 @@ export function setMaterialPlanRoute(
 }
 
 /** A manual drone plan has no call-count cap; included materials cannot be designated. */
-export function toggleDroneInMaterialPlan(
+export function adjustDroneQuantityInMaterialPlan(
+  plan: MaterialPlanState,
+  itemId: string,
+  delta: 1 | -1,
+  materials: readonly PlanMaterial[],
+  availability: MaterialAvailability,
+): MaterialPlanState {
+  const current = reconcileMaterialPlan(plan, materials, availability);
+  const candidate = materials.find((material) => material.itemId === itemId);
+  if (!candidate || droneDesignationBlockReason(candidate) !== null ||
+    current.routeRegionIds?.some((regionId) => availability.get(regionId)?.has(itemId))) return current;
+  const next = Math.max(0, Math.min(candidate.quantity, (current.droneQuantities[itemId] ?? 0) + delta));
+  const droneQuantities = { ...current.droneQuantities };
+  if (next === 0) delete droneQuantities[itemId];
+  else droneQuantities[itemId] = next;
+  return { ...current, droneQuantities };
+}
+
+/** Designate the full combined-build shortage for one candidate, preserving other manual choices. */
+export function designateCandidateDroneMaterial(
   plan: MaterialPlanState,
   itemId: string,
   materials: readonly PlanMaterial[],
   availability: MaterialAvailability,
 ): MaterialPlanState {
   const current = reconcileMaterialPlan(plan, materials, availability);
-  const tables = deriveMaterialTables(materials, current, availability);
-  if (tables.drone.some((material) => material.itemId === itemId)) {
-    return { ...current, droneMaterialIds: current.droneMaterialIds.filter((id) => id !== itemId) };
-  }
-  const candidate = [...tables.missing, ...tables.unassigned].find((material) => material.itemId === itemId);
-  if (!candidate || droneDesignationBlockReason(candidate) !== null) return current;
-  return { ...current, droneMaterialIds: [...current.droneMaterialIds, itemId] };
+  const target = materials.find((material) => material.itemId === itemId);
+  if (!target || droneDesignationBlockReason(target) !== null ||
+    current.routeRegionIds?.some((regionId) => availability.get(regionId)?.has(itemId))) return current;
+  return reconcileMaterialPlan({ ...current, droneQuantities: {
+    ...current.droneQuantities,
+    [itemId]: Math.max(current.droneQuantities[itemId] ?? 0, target.quantity),
+  } }, materials, availability);
 }

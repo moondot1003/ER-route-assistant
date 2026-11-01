@@ -18,7 +18,10 @@ describe('map marker positions', () => {
     const html = renderToStaticMarkup(createElement(LumiaMapPanel, {
       regions: mapRegions, activeRoute: ['pond', 'hospital', 'temple'], onToggleRegion: () => {},
     }));
-    expect(html.match(/<button\b/g)).toHaveLength(20);
+    expect(html.match(/class="map-marker/g)).toHaveLength(20);
+    expect(html).toContain('LUMIA ISLAND');
+    expect(html).toMatch(/class="map-canvas"[\s\S]*class="reset-button map-reset-button"/);
+    expect(html.slice(html.indexOf('class="map-heading"'), html.indexOf('class="map-layout"'))).not.toContain('초기화');
     expect(html).toContain('연못 1번째 방문');
     expect(html).toContain('병원 2번째 방문');
     expect(html).toContain('절 3번째 방문');

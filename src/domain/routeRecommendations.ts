@@ -37,7 +37,7 @@ export function evaluateOrderedRoute(
 ): RouteRecommendation | null {
   if (orderedRegionIds.length < 1 || orderedRegionIds.length > 3 ||
     new Set(orderedRegionIds).size !== orderedRegionIds.length) return null;
-  const tables = deriveMaterialTables(materials, { routeRegionIds: [...orderedRegionIds], droneMaterialIds: [] }, availability);
+  const tables = deriveMaterialTables(materials, { routeRegionIds: [...orderedRegionIds], droneQuantities: {} }, availability);
   if (tables.missing.length > 1) return null;
   const missing = tables.missing[0];
   if (missing && (!Number.isSafeInteger(missing.droneUnitsPerCall) ||
