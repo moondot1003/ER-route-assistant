@@ -4,6 +4,7 @@ export interface PlanMaterial {
   quantity: number;
   acquisition: 'container' | 'field' | 'unknown';
   unitsPerAcquisition: number | null;
+  droneAvailable?: boolean;
   droneUnitsPerCall: number | null;
 }
 
@@ -40,6 +41,12 @@ function validPositiveUnit(unit: number | null): unit is number {
   return unit !== null && Number.isSafeInteger(unit) && unit > 0;
 }
 
+export function droneDesignationBlockReason(material: PlanMaterial): string | null {
+  if (material.droneAvailable === false) return '드론 배송이 불가능한 재료입니다.';
+  if (!validPositiveUnit(material.droneUnitsPerCall)) return '드론 1회 획득 수량이 확인되지 않았습니다.';
+  return null;
+}
+
 /** Recompute four logical tables from current demand and plan; surplus is never accumulated. */
 export function deriveMaterialTables(
   materials: readonly PlanMaterial[],
@@ -60,22 +67,21 @@ export function deriveMaterialTables(
     if (!Number.isSafeInteger(material.quantity) || material.quantity < 1) {
       throw new Error(`잘못된 필요 수량: ${material.itemId}`);
     }
-    if (plan.routeRegionIds === null) {
-      tables.unassigned.push(material);
-      continue;
-    }
-    const obtainable = plan.routeRegionIds.some((regionId) => availability.get(regionId)!.has(material.itemId));
+    const obtainable = plan.routeRegionIds?.some((regionId) => availability.get(regionId)!.has(material.itemId)) ?? false;
     if (obtainable) {
       tables.included.push(material);
       if (validPositiveUnit(material.unitsPerAcquisition)) {
         const acquired = Math.ceil(material.quantity / material.unitsPerAcquisition) * material.unitsPerAcquisition;
         if (acquired > material.quantity) tables.surplus.push({ itemId: material.itemId, quantity: acquired - material.quantity });
       }
-    } else if (droneIds.has(material.itemId) && validPositiveUnit(material.droneUnitsPerCall)) {
+    } else if (droneIds.has(material.itemId) && droneDesignationBlockReason(material) === null &&
+      validPositiveUnit(material.droneUnitsPerCall)) {
       const requiredCalls = Math.ceil(material.quantity / material.droneUnitsPerCall);
       const plannedUnits = requiredCalls * material.droneUnitsPerCall;
       tables.drone.push({ ...material, droneUnitsPerCall: material.droneUnitsPerCall, requiredCalls, plannedUnits });
       if (plannedUnits > material.quantity) tables.surplus.push({ itemId: material.itemId, quantity: plannedUnits - material.quantity });
+    } else if (plan.routeRegionIds === null) {
+      tables.unassigned.push(material);
     } else {
       tables.missing.push(material);
     }
@@ -102,7 +108,7 @@ export function setMaterialPlanRoute(
   return reconcileMaterialPlan({ ...plan, routeRegionIds: routeRegionIds === null ? null : [...routeRegionIds] }, materials, availability);
 }
 
-/** Event handler can call this later; INCLUDED and unassigned materials remain unchanged. */
+/** A manual drone plan has no call-count cap; included materials cannot be designated. */
 export function toggleDroneInMaterialPlan(
   plan: MaterialPlanState,
   itemId: string,
@@ -114,7 +120,7 @@ export function toggleDroneInMaterialPlan(
   if (tables.drone.some((material) => material.itemId === itemId)) {
     return { ...current, droneMaterialIds: current.droneMaterialIds.filter((id) => id !== itemId) };
   }
-  const missing = tables.missing.find((material) => material.itemId === itemId);
-  if (!missing || !validPositiveUnit(missing.droneUnitsPerCall)) return current;
+  const candidate = [...tables.missing, ...tables.unassigned].find((material) => material.itemId === itemId);
+  if (!candidate || droneDesignationBlockReason(candidate) !== null) return current;
   return { ...current, droneMaterialIds: [...current.droneMaterialIds, itemId] };
 }

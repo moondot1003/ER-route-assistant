@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveMaterialTables, emptyMaterialPlan, reconcileMaterialPlan, setMaterialPlanRoute, toggleDroneInMaterialPlan, type PlanMaterial } from './materialPlan';
+import { deriveMaterialTables, droneDesignationBlockReason, emptyMaterialPlan, reconcileMaterialPlan, setMaterialPlanRoute, toggleDroneInMaterialPlan, type PlanMaterial } from './materialPlan';
 
 const availability = new Map([
   ['one', new Set(['branch', 'scrap'])],
@@ -60,5 +60,34 @@ describe('material plan tables', () => {
     const plan = { routeRegionIds: ['one'], droneMaterialIds: ['flower'] };
     expect(reconcileMaterialPlan(plan, [branch], availability).droneMaterialIds).toEqual([]);
     expect(() => setMaterialPlanRoute(plan, ['invalid'], [flower], availability)).toThrow(/존재하지 않는 지역 ID/);
+  });
+
+  it('toggles drone designation without a route and returns to unassigned on cancellation', () => {
+    const first = toggleDroneInMaterialPlan(emptyMaterialPlan(), 'flower', [flower], availability);
+    expect(first.droneMaterialIds).toEqual(['flower']);
+    expect(deriveMaterialTables([flower], first, availability).drone).toMatchObject([{ requiredCalls: 1, plannedUnits: 2 }]);
+    const cancelled = toggleDroneInMaterialPlan(first, 'flower', [flower], availability);
+    expect(cancelled.droneMaterialIds).toEqual([]);
+    expect(deriveMaterialTables([flower], cancelled, availability).unassigned).toEqual([flower]);
+    expect(toggleDroneInMaterialPlan(cancelled, 'flower', [flower], availability).droneMaterialIds).toEqual(['flower']);
+  });
+
+  it('rejects unavailable or unknown-quantity drone materials with a reason', () => {
+    const unavailable: PlanMaterial = { ...flower, itemId: 'blocked', droneAvailable: false };
+    const unknown: PlanMaterial = { ...flower, itemId: 'unknown', droneUnitsPerCall: null };
+    expect(droneDesignationBlockReason(unavailable)).toMatch(/불가능/);
+    expect(droneDesignationBlockReason(unknown)).toMatch(/확인되지/);
+    expect(toggleDroneInMaterialPlan(emptyMaterialPlan(), 'blocked', [unavailable], availability).droneMaterialIds).toEqual([]);
+    expect(toggleDroneInMaterialPlan(emptyMaterialPlan(), 'unknown', [unknown], availability).droneMaterialIds).toEqual([]);
+  });
+
+  it('removes no-longer-needed drone choices and does not restore them after a route change', () => {
+    const designated = toggleDroneInMaterialPlan(emptyMaterialPlan(), 'flower', [flower], availability);
+    expect(reconcileMaterialPlan(designated, [], availability).droneMaterialIds).toEqual([]);
+    const included = setMaterialPlanRoute(designated, ['two'], [flower], availability);
+    expect(included.droneMaterialIds).toEqual([]);
+    const missingAgain = setMaterialPlanRoute(included, ['one'], [flower], availability);
+    expect(deriveMaterialTables([flower], missingAgain, availability).missing).toEqual([flower]);
+    expect(missingAgain.droneMaterialIds).toEqual([]);
   });
 });

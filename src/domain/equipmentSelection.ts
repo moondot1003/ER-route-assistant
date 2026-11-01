@@ -14,11 +14,11 @@ export function emptyEpicEquipmentSelection(): EpicEquipmentSelection {
 export function epicEquipmentOptions(
   equipment: readonly Equipment[],
   slot: EquipmentSlot,
-  weaponTypeId: WeaponTypeId,
+  weaponTypeId: WeaponTypeId | null,
 ): Equipment[] {
   return equipment
     .filter((item) => item.rarity === 'epic' && item.slot === slot)
-    .filter((item) => slot !== 'weapon' || item.weaponTypeId === weaponTypeId)
+    .filter((item) => slot !== 'weapon' || (weaponTypeId !== null && item.weaponTypeId === weaponTypeId))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
 
@@ -34,7 +34,7 @@ export function selectEpicEquipment(
   selection: EpicEquipmentSelection,
   slot: EquipmentSlot,
   itemId: string | null,
-  weaponTypeId: WeaponTypeId,
+  weaponTypeId: WeaponTypeId | null,
   equipment: readonly Equipment[],
 ): EpicEquipmentSelection {
   if (itemId !== null && !epicEquipmentOptions(equipment, slot, weaponTypeId).some((item) => item.id === itemId)) {

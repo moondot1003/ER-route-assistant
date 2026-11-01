@@ -4,10 +4,11 @@ import { MaterialIcon } from './MaterialIcon';
 interface Props {
   tables: MaterialTables;
   hasSelection: boolean;
+  onToggleDrone: (itemId: string) => void;
   error?: string;
 }
 
-export function RequiredMaterialsPanel({ tables, hasSelection, error }: Props) {
+export function RequiredMaterialsPanel({ tables, hasSelection, onToggleDrone, error }: Props) {
   return (
     <section className="panel required-materials" aria-labelledby="required-materials-title">
       <div className="section-heading">
@@ -18,13 +19,14 @@ export function RequiredMaterialsPanel({ tables, hasSelection, error }: Props) {
         : !hasSelection ? <p className="materials-empty">장비를 선택하면 필요한 재료가 표시됩니다.</p>
           : <>
             <ul className="material-icons" aria-label="필요 제작 재료">
-              {tables.unassigned.map((material) => <MaterialIcon key={material.itemId} material={material} status="unassigned" />)}
-              {tables.included.map((material) => <MaterialIcon key={material.itemId} material={material} status="included" />)}
-              {tables.missing.map((material) => <MaterialIcon key={material.itemId} material={material} status="missing" />)}
+              {tables.unassigned.map((material) => <MaterialIcon key={material.itemId} material={material} status="unassigned" onToggleDrone={onToggleDrone} />)}
+              {tables.included.map((material) => <MaterialIcon key={material.itemId} material={material} status="included" onToggleDrone={onToggleDrone} />)}
+              {tables.missing.map((material) => <MaterialIcon key={material.itemId} material={material} status="missing" onToggleDrone={onToggleDrone} />)}
               {tables.drone.map((material) => <MaterialIcon key={material.itemId} material={material} status="drone"
-                requiredCalls={material.requiredCalls} plannedUnits={material.plannedUnits} />)}
+                requiredCalls={material.requiredCalls} plannedUnits={material.plannedUnits} onToggleDrone={onToggleDrone} />)}
             </ul>
             <p className="material-notation">재료 아이콘 이미지 미제공 · 문자 표시는 임시입니다. 이름과 수량은 아이콘에 마우스를 올려 확인하세요.</p>
+            <p className="material-notation">재료를 우클릭하면 드론 배송을 지정하거나 취소할 수 있습니다.</p>
           </>}
     </section>
   );

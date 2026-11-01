@@ -52,6 +52,9 @@ button, select { font: inherit; }
 .workspace-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .workspace-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .section-heading h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.035em; }
+.section-heading-with-action, .section-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.reset-button { padding: 4px 8px; border: 1px solid #566c7c; border-radius: 5px; background: transparent; color: #b8c8d5; font-size: 11px; cursor: pointer; }
+.reset-button:hover, .reset-button:focus-visible { border-color: #a6ddd3; color: #f5f8fb; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
 .field { display: flex; flex-direction: column; gap: 8px; }
 .field-label { color: #cfdae5; font-size: 13px; font-weight: 700; }
@@ -87,7 +90,7 @@ button, select { font: inherit; }
 .material-icons { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 16px 0 0; padding: 0; }
 .material-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 46px; height: 44px; padding: 0 6px; border: 1px solid #637583; border-radius: 7px; background: #213140; color: #e8edf4; font-size: 12px; }
 .material-icon--missing { border: 2px solid #e46e67; }
-.material-icon--drone { border-color: #a6ddd3; }
+.material-icon--drone { border: 2px solid #e4c45c; }
 .material-icon-mark { font-weight: 700; }
 .material-icon-quantity { color: #a6ddd3; font-weight: 700; }
 .material-icon-drone { position: absolute; top: -8px; right: -8px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: #294451; font-size: 11px; }

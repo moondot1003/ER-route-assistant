@@ -6,6 +6,7 @@ import { mockCatalog } from '../data/mockCatalog';
 import { emptyEpicEquipmentSelection, epicEquipmentOptions } from '../domain/equipmentSelection';
 import { CharacterSelector } from './CharacterSelector';
 import { EquipmentSelectionPanel } from './EquipmentSelectionPanel';
+import { WeaponTypeSelector } from './WeaponTypeSelector';
 
 describe('equipment selection panel', () => {
   it('labels the existing character choices as test subjects', () => {
@@ -18,6 +19,15 @@ describe('equipment selection panel', () => {
     expect(html).toContain('시연 실험체 A');
     expect(html).toContain('시연 실험체 B');
     expect(html).not.toContain('캐릭터');
+    const unselected = renderToStaticMarkup(createElement(CharacterSelector, {
+      characters: mockCatalog.characters, value: '', onChange: () => {},
+    }));
+    expect(unselected).toContain('선택 안 함');
+    const noWeapon = renderToStaticMarkup(createElement(WeaponTypeSelector, {
+      supportedTypes: [], value: null, onChange: () => {},
+    }));
+    expect(noWeapon).toContain('disabled');
+    expect(noWeapon).toContain('선택 안 함');
   });
 
   it('renders five labeled empty slots and only the active weapon type', () => {
@@ -26,11 +36,13 @@ describe('equipment selection panel', () => {
       weaponTypeId: 'glove',
       selection: emptyEpicEquipmentSelection(),
       onChange: () => {},
+      onReset: () => {},
     }));
     expect(html.match(/<select\b/g)).toHaveLength(5);
     expect(html).toContain('02 / EQUIPMENTS');
     expect(html).toContain('최종 목표 장비');
     expect(html).toContain('0/5 선택');
+    expect(html).toContain('초기화');
     expect(html).not.toContain('장비 이름 검색');
     expect(html).not.toContain('type="search"');
     expect(html.match(/비어 있음/g)).toHaveLength(5);
@@ -46,10 +58,21 @@ describe('equipment selection panel', () => {
       weaponTypeId: 'glove',
       selection: { ...emptyEpicEquipmentSelection(), chest: chest.id },
       onChange: () => {},
+      onReset: () => {},
     }));
     expect(html).toContain('1/5 선택');
     expect(html).toContain(chest.name);
     expect(html).toContain('영웅');
     expect(html.match(/비어 있음/g)).toHaveLength(4);
+  });
+
+  it('disables only the weapon slot without a selected weapon type', () => {
+    const html = renderToStaticMarkup(createElement(EquipmentSelectionPanel, {
+      equipment: equipmentCatalog, weaponTypeId: null,
+      selection: emptyEpicEquipmentSelection(), onChange: () => {}, onReset: () => {},
+    }));
+    expect(html.match(/<select[^>]*disabled/g)).toHaveLength(1);
+    expect(html).toContain('무기 유형 선택 필요');
+    expect(html.match(/<select\b/g)).toHaveLength(5);
   });
 });

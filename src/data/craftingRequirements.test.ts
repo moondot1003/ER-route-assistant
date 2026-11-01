@@ -36,6 +36,16 @@ describe('selected equipment material requirements', () => {
     expect(calculateSelectedEquipmentMaterials(bow, 'bow').basicMaterials.length).toBeGreaterThan(0);
   });
 
+  it('calculates non-weapon equipment with no weapon type using only known starting shirt and sneakers', () => {
+    expect(startingInventoryForWeapon(null)).toEqual([
+      { itemId: 'sample-common:셔츠', quantity: 1 },
+      { itemId: 'sample-common:운동화', quantity: 1 },
+    ]);
+    const chest = equipmentCatalog.find((item) => item.rarity === 'epic' && item.slot === 'chest')!;
+    const selection = { ...emptyEpicEquipmentSelection(), chest: chest.id };
+    expect(calculateSelectedEquipmentMaterials(selection, null).basicMaterials.length).toBeGreaterThan(0);
+  });
+
   it('expands every registered Epic item using the integrated recipe graph', () => {
     const epicItems = equipmentCatalog.filter((item) => item.rarity === 'epic');
     expect(epicItems).toHaveLength(84);

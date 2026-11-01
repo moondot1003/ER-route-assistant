@@ -11,6 +11,7 @@ export function CharacterSelector({ characters, value, onChange }: Props) {
     <label className="field">
       <span className="field-label">실험체</span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">선택 안 함</option>
         {characters.map((character) => (
           <option key={character.id} value={character.id}>{character.name}</option>
         ))}

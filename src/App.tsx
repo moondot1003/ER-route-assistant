@@ -1,31 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { catalogRepository } from './data/catalogRepository';
 import { equipmentCatalog } from './data/equipmentCatalog';
 import { acquisitionForBasicMaterial, calculateSelectedEquipmentMaterials } from './data/craftingRequirements';
-import { emptyEpicEquipmentSelection, resetEpicEquipmentOnContextChange, selectEpicEquipment } from './domain/equipmentSelection';
-import type { Catalog, EpicEquipmentSelection } from './domain/models';
+import { selectEpicEquipment } from './domain/equipmentSelection';
+import type { Catalog } from './domain/models';
 import { weaponTypes, type WeaponTypeId } from './domain/weaponTypes';
 import { CharacterSelector } from './components/CharacterSelector';
 import { EquipmentSelectionPanel } from './components/EquipmentSelectionPanel';
 import { RequiredMaterialsPanel } from './components/RequiredMaterialsPanel';
 import { LumiaMapPanel } from './components/LumiaMapPanel';
 import { WeaponTypeSelector } from './components/WeaponTypeSelector';
-import { emptyMaterialPlan, deriveMaterialTables } from './domain/materialPlan';
+import { deriveMaterialTables, reconcileMaterialPlan, setMaterialPlanRoute, toggleDroneInMaterialPlan } from './domain/materialPlan';
 import { materialAvailabilityByRegion } from './data/materialAvailability';
 import { regionLootSample } from './data/regionLootSample';
 import { recommendRoutes } from './domain/routeRecommendations';
 import { RouteRecommendationsPanel } from './components/RouteRecommendationsPanel';
 import { mapRegions } from './data/regionMapPositions';
 import { toggleRouteRegion } from './domain/activeRoute';
+import { changeCharacterSelection, changeWeaponSelection, emptySelectionState, resetEquipmentSelection, resetSurvivorSelection } from './domain/selectionState';
 
 const validRegionIds = new Set(regionLootSample.map((region) => region.id));
 
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [selectedCharacterId, setSelectedCharacterId] = useState('');
-  const [selectedWeaponTypeId, setSelectedWeaponTypeId] = useState<WeaponTypeId | null>(null);
-  const [selectedEpicEquipment, setSelectedEpicEquipment] = useState<EpicEquipmentSelection>(emptyEpicEquipmentSelection);
+  const [selection, setSelection] = useState(emptySelectionState);
+  const { characterId: selectedCharacterId, weaponTypeId: selectedWeaponTypeId, equipment: selectedEpicEquipment } = selection;
   const [activeRoute, setActiveRoute] = useState<string[]>([]);
+  const [droneMaterialIds, setDroneMaterialIds] = useState<string[]>([]);
   const [includeDroneRoutes, setIncludeDroneRoutes] = useState(true);
   const [error, setError] = useState('');
 
@@ -33,36 +34,41 @@ export default function App() {
     let active = true;
     catalogRepository.loadCatalog().then((loaded) => {
       if (!active) return;
-      const firstCharacter = loaded.characters[0];
-      const firstWeapon = firstCharacter?.supportedWeaponTypes[0];
-      if (!firstCharacter || !firstWeapon) throw new Error('선택 가능한 시연 실험체가 없습니다.');
       setCatalog(loaded);
-      setSelectedCharacterId(firstCharacter.id);
-      setSelectedWeaponTypeId(firstWeapon);
     }).catch((cause: unknown) => {
       if (active) setError(cause instanceof Error ? cause.message : '데이터를 불러오지 못했습니다.');
     });
     return () => { active = false; };
   }, []);
 
+  const { materials, materialError } = useMemo(() => {
+    try {
+      return { materials: calculateSelectedEquipmentMaterials(selectedEpicEquipment, selectedWeaponTypeId)
+        .basicMaterials.map(acquisitionForBasicMaterial), materialError: '' };
+    } catch (cause) {
+      return { materials: [] as ReturnType<typeof acquisitionForBasicMaterial>[],
+        materialError: cause instanceof Error ? cause.message : '알 수 없는 계산 오류' };
+    }
+  }, [selectedEpicEquipment, selectedWeaponTypeId]);
+  const routeRegionIds = activeRoute.length > 0 ? activeRoute : null;
+  const materialPlan = useMemo(() => reconcileMaterialPlan(
+    { routeRegionIds, droneMaterialIds }, materials, materialAvailabilityByRegion,
+  ), [routeRegionIds, droneMaterialIds, materials]);
+  useEffect(() => {
+    if (droneMaterialIds.length !== materialPlan.droneMaterialIds.length ||
+      droneMaterialIds.some((id, index) => id !== materialPlan.droneMaterialIds[index])) {
+      setDroneMaterialIds(materialPlan.droneMaterialIds);
+    }
+  }, [droneMaterialIds, materialPlan]);
+
   if (error) return <main className="app-shell"><p role="alert" className="error">{error}</p></main>;
-  if (!catalog || !selectedWeaponTypeId) return <main className="app-shell"><p>시연 데이터를 불러오는 중…</p></main>;
+  if (!catalog) return <main className="app-shell"><p>시연 데이터를 불러오는 중…</p></main>;
 
   const character = catalog.characters.find((entry) => entry.id === selectedCharacterId);
-  if (!character) return <main className="app-shell"><p role="alert" className="error">실험체를 찾을 수 없습니다.</p></main>;
+  if (selectedCharacterId && !character) return <main className="app-shell"><p role="alert" className="error">실험체를 찾을 수 없습니다.</p></main>;
 
   const selectedType = weaponTypes.find((type) => type.id === selectedWeaponTypeId);
-  let materials = [] as ReturnType<typeof acquisitionForBasicMaterial>[];
-  let materialError = '';
-  try {
-    materials = calculateSelectedEquipmentMaterials(selectedEpicEquipment, selectedWeaponTypeId)
-      .basicMaterials.map(acquisitionForBasicMaterial);
-  } catch (cause) {
-    materialError = cause instanceof Error ? cause.message : '알 수 없는 계산 오류';
-  }
-  const materialTables = deriveMaterialTables(materials, {
-    ...emptyMaterialPlan(), routeRegionIds: activeRoute.length > 0 ? activeRoute : null,
-  }, materialAvailabilityByRegion);
+  const materialTables = deriveMaterialTables(materials, materialPlan, materialAvailabilityByRegion);
   const hasSelection = Object.values(selectedEpicEquipment).some(Boolean);
   let routeError = materialError;
   let recommendations: ReturnType<typeof recommendRoutes> = [];
@@ -75,19 +81,21 @@ export default function App() {
   }
 
   function selectCharacter(characterId: string) {
-    const nextCharacter = catalog?.characters.find((entry) => entry.id === characterId);
-    if (!nextCharacter || characterId === selectedCharacterId) return;
-    const nextWeaponType = selectedWeaponTypeId && nextCharacter.supportedWeaponTypes.includes(selectedWeaponTypeId)
-      ? selectedWeaponTypeId : nextCharacter.supportedWeaponTypes[0];
-    setSelectedCharacterId(characterId);
-    setSelectedWeaponTypeId(nextWeaponType ?? null);
-    setSelectedEpicEquipment((current) => resetEpicEquipmentOnContextChange(current, selectedCharacterId, characterId));
+    if (characterId && !catalog?.characters.some((entry) => entry.id === characterId)) return;
+    setSelection((current) => changeCharacterSelection(current, characterId));
   }
 
-  function selectWeaponType(weaponTypeId: WeaponTypeId) {
-    if (!character?.supportedWeaponTypes.includes(weaponTypeId) || weaponTypeId === selectedWeaponTypeId) return;
-    setSelectedWeaponTypeId(weaponTypeId);
-    setSelectedEpicEquipment((current) => resetEpicEquipmentOnContextChange(current, selectedWeaponTypeId, weaponTypeId));
+  function selectWeaponType(weaponTypeId: WeaponTypeId | null) {
+    if (weaponTypeId !== null && !character?.supportedWeaponTypes.includes(weaponTypeId)) return;
+    setSelection((current) => changeWeaponSelection(current, weaponTypeId));
+  }
+
+  function updateRoute(nextRoute: string[]) {
+    setActiveRoute(nextRoute);
+    setDroneMaterialIds((current) => setMaterialPlanRoute(
+      { routeRegionIds, droneMaterialIds: current }, nextRoute.length > 0 ? nextRoute : null,
+      materials, materialAvailabilityByRegion,
+    ).droneMaterialIds);
   }
 
   return (
@@ -105,23 +113,24 @@ export default function App() {
       <div className="workspace-grid">
         <div className="workspace-column">
           <section className="panel selection-panel" aria-labelledby="selection-title">
-            <div className="section-heading">
-              <span className="eyebrow">01 / SURVIVORS</span>
-              <h2 id="selection-title">실험체 및 무기 유형 선택</h2>
+            <div className="section-heading section-heading-with-action">
+              <div><span className="eyebrow">01 / SURVIVORS</span><h2 id="selection-title">실험체 및 무기 유형 선택</h2></div>
+              <button className="reset-button" type="button" onClick={() => setSelection(resetSurvivorSelection())}>초기화</button>
             </div>
             <div className="form-grid">
               <CharacterSelector characters={catalog.characters} value={selectedCharacterId} onChange={selectCharacter} />
-              <WeaponTypeSelector supportedTypes={character.supportedWeaponTypes} value={selectedWeaponTypeId} onChange={selectWeaponType} />
+              <WeaponTypeSelector supportedTypes={character?.supportedWeaponTypes ?? []} value={selectedWeaponTypeId} onChange={selectWeaponType} />
             </div>
-            <p className="selection-summary">{character.name} · {selectedType?.ko ?? selectedWeaponTypeId} 선택</p>
+            <p className="selection-summary">{character ? `${character.name} · ${selectedType?.ko ?? '무기 유형 선택 안 함'}` : '실험체 선택 안 함'}</p>
           </section>
 
           <EquipmentSelectionPanel
             equipment={equipmentCatalog}
             weaponTypeId={selectedWeaponTypeId}
             selection={selectedEpicEquipment}
-            onChange={(slot, itemId) => setSelectedEpicEquipment((current) =>
-              selectEpicEquipment(current, slot, itemId, selectedWeaponTypeId, equipmentCatalog))}
+            onChange={(slot, itemId) => setSelection((current) => ({ ...current, equipment:
+              selectEpicEquipment(current.equipment, slot, itemId, current.weaponTypeId, equipmentCatalog) }))}
+            onReset={() => setSelection((current) => resetEquipmentSelection(current))}
           />
 
           <section className="panel placeholder-panel" aria-labelledby="build-ups-title">
@@ -131,20 +140,23 @@ export default function App() {
 
         <div className="workspace-column">
           <LumiaMapPanel regions={mapRegions} activeRoute={activeRoute}
-            onToggleRegion={(regionId) => setActiveRoute((current) => toggleRouteRegion(current, regionId, validRegionIds))} />
+            onToggleRegion={(regionId) => updateRoute(toggleRouteRegion(activeRoute, regionId, validRegionIds))} />
 
           <RequiredMaterialsPanel
             tables={materialTables}
             hasSelection={hasSelection}
+            onToggleDrone={(itemId) => setDroneMaterialIds((current) => toggleDroneInMaterialPlan(
+              { routeRegionIds, droneMaterialIds: current }, itemId, materials, materialAvailabilityByRegion,
+            ).droneMaterialIds)}
             error={materialError}
           />
 
           {activeRoute.length > 0 && materialTables.missing.length > 0 &&
-            <p className="route-shortfall-note">현재 경로에 없는 재료는 부족으로 표시됩니다. 드론 지정은 다음 단계에서 지원합니다.</p>}
+            <p className="route-shortfall-note">현재 경로에 없는 재료는 부족으로 표시됩니다. 재료를 우클릭해 드론 배송을 지정할 수 있습니다.</p>}
 
           <RouteRecommendationsPanel recommendations={recommendations} regions={regionLootSample}
             hasSelection={hasSelection} activeRoute={activeRoute} includeDroneRoutes={includeDroneRoutes}
-            onIncludeDroneRoutesChange={setIncludeDroneRoutes} onSelectRoute={setActiveRoute} error={routeError} />
+            onIncludeDroneRoutesChange={setIncludeDroneRoutes} onSelectRoute={updateRoute} error={routeError} />
         </div>
       </div>
 

@@ -4,12 +4,13 @@ import { equipmentSlotLabels, equipmentSlots, epicEquipmentOptions } from '../do
 
 interface Props {
   equipment: Equipment[];
-  weaponTypeId: WeaponTypeId;
+  weaponTypeId: WeaponTypeId | null;
   selection: EpicEquipmentSelection;
   onChange: (slot: EquipmentSlot, itemId: string | null) => void;
+  onReset: () => void;
 }
 
-export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, onChange }: Props) {
+export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, onChange, onReset }: Props) {
   const selectedCount = equipmentSlots.filter((slot) => selection[slot] !== null).length;
 
   return (
@@ -19,7 +20,8 @@ export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, on
           <span className="eyebrow">02 / EQUIPMENTS</span>
           <h2 id="equipment-selection-title">최종 목표 장비</h2>
         </div>
-        <span className="selection-count">{selectedCount}/5 선택</span>
+        <div className="section-actions"><span className="selection-count">{selectedCount}/5 선택</span>
+          <button className="reset-button" type="button" onClick={onReset}>초기화</button></div>
       </div>
       <div className="equipment-selection-grid">
         {equipmentSlots.map((slot) => {
@@ -29,8 +31,9 @@ export function EquipmentSelectionPanel({ equipment, weaponTypeId, selection, on
             <div className="equipment-selection-card" key={slot}>
               <label className="field">
                 <span className="field-label">{equipmentSlotLabels[slot]}</span>
-                <select value={selection[slot] ?? ''} onChange={(event) => onChange(slot, event.target.value || null)}>
-                  <option value="">선택 안 함</option>
+                <select value={selection[slot] ?? ''} disabled={slot === 'weapon' && weaponTypeId === null}
+                  onChange={(event) => onChange(slot, event.target.value || null)}>
+                  <option value="">{slot === 'weapon' && weaponTypeId === null ? '무기 유형 선택 필요' : '선택 안 함'}</option>
                   {options.map((item) => <option key={item.id} value={item.id}>{item.name} · 영웅</option>)}
                 </select>
               </label>

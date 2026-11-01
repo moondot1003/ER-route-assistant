@@ -18,17 +18,18 @@ const allRecipes = [...craftingRecipes, ...materialRecipes];
 const containerItemIds = new Set(regionLootSample.flatMap((region) => region.items.map((item) => item.itemId)));
 const materialById = new Map(materialCatalog.map((material) => [material.id, material]));
 
-export function startingInventoryForWeapon(weaponTypeId: WeaponTypeId): ItemQuantity[] {
-  const weaponId = startingEquipmentReference.commonWeaponByType[weaponTypeId as keyof typeof startingEquipmentReference.commonWeaponByType];
-  if (!weaponId) throw new Error(`시작 장비 대응표에 없는 무기 유형: ${weaponTypeId}`);
-  return [weaponId, startingEquipmentReference.shirtItemId, startingEquipmentReference.sneakersItemId]
+export function startingInventoryForWeapon(weaponTypeId: WeaponTypeId | null): ItemQuantity[] {
+  const weaponId = weaponTypeId === null ? null
+    : startingEquipmentReference.commonWeaponByType[weaponTypeId as keyof typeof startingEquipmentReference.commonWeaponByType];
+  if (weaponTypeId !== null && !weaponId) throw new Error(`시작 장비 대응표에 없는 무기 유형: ${weaponTypeId}`);
+  return [...(weaponId ? [weaponId] : []), startingEquipmentReference.shirtItemId, startingEquipmentReference.sneakersItemId]
     .map((itemId) => ({ itemId, quantity: 1 }));
 }
 
 /** Production adapter for the selected equipment IDs; each call is independent of UI state. */
 export function calculateSelectedEquipmentMaterials(
   selection: EpicEquipmentSelection,
-  weaponTypeId: WeaponTypeId,
+  weaponTypeId: WeaponTypeId | null,
 ): CraftingCalculation {
   const targets = equipmentSlots.flatMap((slot) => {
     const itemId = selection[slot];
