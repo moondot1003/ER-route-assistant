@@ -77,8 +77,12 @@ button, select { font: inherit; }
 .equipment-selection-value strong { flex: none; color: #b9a9ee; font-size: 12px; }
 .empty-value { color: #8696a8; }
 
-.map-panel { display: grid; place-items: center; min-height: 355px; padding: 12px; }
-.map-panel img { display: block; width: auto; max-width: 100%; height: auto; max-height: 380px; object-fit: contain; }
+.map-panel { display: grid; place-items: center; padding: 12px; }
+.map-canvas { position: relative; width: min(100%, 440px); }
+.map-panel img { display: block; width: 100%; height: auto; }
+.map-marker { position: absolute; transform: translate(-50%, -50%); z-index: 1; padding: 3px 5px; border: 1px solid #b3c9d2; border-radius: 5px; background: #142633e8; color: #f4f9fb; white-space: nowrap; font-size: 10px; font-weight: 700; cursor: pointer; }
+.map-marker--selected { z-index: 2; border-color: #a6ddd3; background: #14545a; color: #fff; }
+.map-marker:hover, .map-marker:focus-visible { z-index: 3; outline: 2px solid #fff; }
 .placeholder-panel { min-height: 110px; }
 .material-icons { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 16px 0 0; padding: 0; }
 .material-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 46px; height: 44px; padding: 0 6px; border: 1px solid #637583; border-radius: 7px; background: #213140; color: #e8edf4; font-size: 12px; }
@@ -90,12 +94,16 @@ button, select { font: inherit; }
 .material-notation { margin: 11px 0 0; color: #94a5b5; font-size: 11px; line-height: 1.5; }
 .materials-empty { margin: 18px 0 0; color: #8696a8; font-size: 13px; }
 .materials-error { margin: 20px 0 0; color: #ffb8a9; font-size: 13px; }
-.route-list { display: grid; gap: 7px; list-style: none; margin: 16px 0 0; padding: 0; }
-.route-row { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 9px 10px; border: 1px solid #394b5a; border-radius: 7px; background: #192633; font-size: 12px; }
+.route-filter { display: inline-flex; align-items: center; gap: 7px; margin-top: 13px; color: #c5d2dd; font-size: 12px; cursor: pointer; }
+.route-list { display: grid; gap: 7px; max-height: 430px; overflow-y: auto; list-style: none; margin: 13px 0 0; padding: 0 4px 0 0; }
+.route-row { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #394b5a; border-radius: 7px; background: #192633; color: #e8edf4; text-align: left; font-size: 12px; cursor: pointer; }
+.route-row:hover, .route-row:focus-visible { border-color: #a6ddd3; }
+.route-row--active { border-color: #a6ddd3; background: #1c4145; }
 .route-rank { color: #a6ddd3; font-weight: 800; }
 .route-areas { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .route-meta { color: #c5d2dd; white-space: nowrap; }
 .route-note { margin: 12px 0 0; color: #94a5b5; font-size: 11px; }
+.route-shortfall-note { margin: -7px 0 0; color: #e8bdad; font-size: 12px; }
 
 footer { margin-top: 25px; color: #8696a8; font-size: 12px; text-align: center; }
 .error { padding: 20px; color: #ffb8a9; border: 1px solid #a45549; border-radius: 8px; }

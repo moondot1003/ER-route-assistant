@@ -71,4 +71,23 @@ describe('route recommendations', () => {
     expect(result).toHaveLength(10);
     expect(new Set(result.map((route) => [...route.orderedRegionIds].sort().join('|'))).size).toBe(10);
   });
+
+  it('filters drone routes from all candidates before selecting the top twenty', () => {
+    const manyRegions = Array.from({ length: 24 }, (_, index) => ({ id: `r${index}`, name: `지역 ${index}` }));
+    const data = new Map(manyRegions.map((region, index) => [region.id, new Set([index < 12 ? 'x' : 'y'])]));
+    const result = recommendRoutes([item('x'), item('y')], manyRegions, data, 20, false);
+    expect(result).toHaveLength(20);
+    expect(result.every((route) => route.droneCalls === 0 && route.orderedRegionIds.length === 2)).toBe(true);
+  });
+
+  it('rotates starting regions within the same area-count and drone tier', () => {
+    const areaSet = regions.slice(0, 4);
+    const data = new Map([
+      ['a', new Set(['x', 'y'])], ['b', new Set(['y', 'z'])],
+      ['c', new Set(['x', 'z'])], ['d', new Set(['x', 'y'])],
+    ]);
+    const twoAreaZeroDrone = recommendRoutes([item('x'), item('y'), item('z')], areaSet, data, 20)
+      .filter((route) => route.orderedRegionIds.length === 2 && route.droneCalls === 0);
+    expect(new Set(twoAreaZeroDrone.slice(0, 3).map((route) => route.orderedRegionIds[0])).size).toBe(3);
+  });
 });

@@ -70,12 +70,38 @@ function permutations(ids: readonly string[]): string[][] {
     .map((tail) => [id, ...tail]));
 }
 
-/** One best visiting order per region combination; returns the highest-ranked ten. */
+/** Rotate starting areas within equal region-count/drone tiers. */
+function diversifyStartingAreas(sorted: RouteRecommendation[]): RouteRecommendation[] {
+  const result: RouteRecommendation[] = [];
+  for (let start = 0; start < sorted.length;) {
+    let end = start + 1;
+    while (end < sorted.length && sorted[end].orderedRegionIds.length === sorted[start].orderedRegionIds.length &&
+      sorted[end].droneCalls === sorted[start].droneCalls) end += 1;
+    const byStart = new Map<string, RouteRecommendation[]>();
+    for (const route of sorted.slice(start, end)) {
+      const first = route.orderedRegionIds[0];
+      const group = byStart.get(first) ?? [];
+      group.push(route);
+      byStart.set(first, group);
+    }
+    while ([...byStart.values()].some((group) => group.length > 0)) {
+      for (const group of byStart.values()) {
+        const next = group.shift();
+        if (next) result.push(next);
+      }
+    }
+    start = end;
+  }
+  return result;
+}
+
+/** One best visiting order per region combination; filter before taking the limit. */
 export function recommendRoutes(
   materials: readonly PlanMaterial[],
   regions: readonly RouteRegion[],
   availability: MaterialAvailability,
   limit = 10,
+  includeDroneRoutes = true,
 ): RouteRecommendation[] {
   if (materials.length === 0 || limit <= 0) return [];
   const names = new Map(regions.map((region) => [region.id, region.name]));
@@ -97,5 +123,6 @@ export function recommendRoutes(
   }
 
   visitCombinations(0, []);
-  return bestByCombination.sort((a, b) => compareByPriority(a, b, names)).slice(0, limit);
+  const eligible = includeDroneRoutes ? bestByCombination : bestByCombination.filter((route) => route.droneCalls === 0);
+  return diversifyStartingAreas(eligible.sort((a, b) => compareByPriority(a, b, names))).slice(0, limit);
 }

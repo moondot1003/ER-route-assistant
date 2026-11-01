@@ -15,14 +15,18 @@ import { materialAvailabilityByRegion } from './data/materialAvailability';
 import { regionLootSample } from './data/regionLootSample';
 import { recommendRoutes } from './domain/routeRecommendations';
 import { RouteRecommendationsPanel } from './components/RouteRecommendationsPanel';
+import { mapRegions } from './data/regionMapPositions';
+import { toggleRouteRegion } from './domain/activeRoute';
 
-const initialMaterialPlan = emptyMaterialPlan();
+const validRegionIds = new Set(regionLootSample.map((region) => region.id));
 
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState('');
   const [selectedWeaponTypeId, setSelectedWeaponTypeId] = useState<WeaponTypeId | null>(null);
   const [selectedEpicEquipment, setSelectedEpicEquipment] = useState<EpicEquipmentSelection>(emptyEpicEquipmentSelection);
+  const [activeRoute, setActiveRoute] = useState<string[]>([]);
+  const [includeDroneRoutes, setIncludeDroneRoutes] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -56,13 +60,15 @@ export default function App() {
   } catch (cause) {
     materialError = cause instanceof Error ? cause.message : '알 수 없는 계산 오류';
   }
-  const materialTables = deriveMaterialTables(materials, initialMaterialPlan, materialAvailabilityByRegion);
+  const materialTables = deriveMaterialTables(materials, {
+    ...emptyMaterialPlan(), routeRegionIds: activeRoute.length > 0 ? activeRoute : null,
+  }, materialAvailabilityByRegion);
   const hasSelection = Object.values(selectedEpicEquipment).some(Boolean);
   let routeError = materialError;
   let recommendations: ReturnType<typeof recommendRoutes> = [];
   if (hasSelection && !routeError) {
     try {
-      recommendations = recommendRoutes(materials, regionLootSample, materialAvailabilityByRegion);
+      recommendations = recommendRoutes(materials, regionLootSample, materialAvailabilityByRegion, 20, includeDroneRoutes);
     } catch (cause) {
       routeError = cause instanceof Error ? cause.message : '알 수 없는 추천 오류';
     }
@@ -124,7 +130,8 @@ export default function App() {
         </div>
 
         <div className="workspace-column">
-          <LumiaMapPanel />
+          <LumiaMapPanel regions={mapRegions} activeRoute={activeRoute}
+            onToggleRegion={(regionId) => setActiveRoute((current) => toggleRouteRegion(current, regionId, validRegionIds))} />
 
           <RequiredMaterialsPanel
             tables={materialTables}
@@ -132,12 +139,16 @@ export default function App() {
             error={materialError}
           />
 
+          {activeRoute.length > 0 && materialTables.missing.length > 0 &&
+            <p className="route-shortfall-note">현재 경로에 없는 재료는 부족으로 표시됩니다. 드론 지정은 다음 단계에서 지원합니다.</p>}
+
           <RouteRecommendationsPanel recommendations={recommendations} regions={regionLootSample}
-            hasSelection={hasSelection} error={routeError} />
+            hasSelection={hasSelection} activeRoute={activeRoute} includeDroneRoutes={includeDroneRoutes}
+            onIncludeDroneRoutesChange={setIncludeDroneRoutes} onSelectRoute={setActiveRoute} error={routeError} />
         </div>
       </div>
 
-      <footer>지도에서 루트를 선택하는 기능은 준비 중입니다.</footer>
+      <footer>Eternal Return 및 관련 게임 자산의 권리는 님블뉴런 등 해당 권리자에게 있습니다. 본 앱은 비공식·비상업적 대학 과제이며 공식 제휴·승인 서비스가 아닙니다.</footer>
     </main>
   );
 }
